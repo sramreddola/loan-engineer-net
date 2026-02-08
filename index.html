@@ -65,23 +65,107 @@
 
     <div id="news" class="bg-slate-100 py-16">
         <div class="max-w-7xl mx-auto px-4">
-            <h2 class="text-3xl font-bold text-center mb-10">Market Intelligence</h2>
-            <div class="grid md:grid-cols-3 gap-8">
-                <div class="bg-white p-6 rounded-lg shadow-sm">
-                    <h3 class="font-bold text-lg mb-2">Fed Rate Updates</h3>
-                    <p class="text-slate-600">Understand how Federal Reserve decisions impact your borrowing power.</p>
-                </div>
-                <div class="bg-white p-6 rounded-lg shadow-sm">
-                    <h3 class="font-bold text-lg mb-2">Buy vs. Rent</h3>
-                    <p class="text-slate-600">Engineering the break-even point for your real estate investment.</p>
-                </div>
-                <div class="bg-white p-6 rounded-lg shadow-sm">
-                    <h3 class="font-bold text-lg mb-2">Refinance Analysis</h3>
-                    <p class="text-slate-600">Data-driven strategies to lower your monthly overhead.</p>
-                </div>
+            <div class="flex justify-between items-end mb-10">
+                <h2 class="text-3xl font-bold text-slate-900">Market Intelligence</h2>
+                <span class="text-sm text-slate-500 hidden md:inline">Source: Mortgage News Daily</span>
+            </div>
+
+            <div id="news-container" class="grid md:grid-cols-3 gap-8">
+                <div class="bg-white p-6 rounded-lg shadow-sm animate-pulse h-48"></div>
+                <div class="bg-white p-6 rounded-lg shadow-sm animate-pulse h-48"></div>
+                <div class="bg-white p-6 rounded-lg shadow-sm animate-pulse h-48"></div>
+            </div>
+            
+            <div class="text-center mt-8">
+                <a href="https://www.mortgagenewsdaily.com/" target="_blank" class="text-blue-600 text-sm hover:underline">
+                    Read full coverage at Mortgage News Daily &rarr;
+                </a>
             </div>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // We use rss2json to convert the XML feed to JSON so browsers can read it
+            const feedUrl = 'https://www.mortgagenewsdaily.com/rss/news';
+            const apiKey = '0hfvqunlx3avq2nfa47065913'; // Optional: Use a free key if you hit limits
+            const convertUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`;
+
+            fetch(convertUrl)
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById('news-container');
+                    
+                    if (data.status === 'ok') {
+                        // Clear loading placeholders
+                        container.innerHTML = '';
+
+                        // Loop through the first 3 items
+                        data.items.slice(0, 3).forEach(item => {
+                            // Create the card HTML
+                            const card = document.createElement('div');
+                            card.className = 'bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition duration-300 flex flex-col justify-between';
+                            
+                            // Clean up the date
+                            const date = new Date(item.pubDate).toLocaleDateString('en-US', {
+                                month: 'short', day: 'numeric'
+                            });
+
+                            card.innerHTML = `
+                                <div>
+                                    <div class="text-xs font-bold text-blue-600 mb-2 uppercase tracking-wide">
+                                        ${date}
+                                    </div>
+                                    <h3 class="font-bold text-lg mb-3 leading-tight text-slate-900">
+                                        <a href="${item.link}" target="_blank" class="hover:text-blue-700">
+                                            ${item.title}
+                                        </a>
+                                    </h3>
+                                    <p class="text-slate-600 text-sm line-clamp-3 mb-4">
+                                        ${stripHtml(item.description)}
+                                    </p>
+                                </div>
+                                <a href="${item.link}" target="_blank" class="text-blue-600 text-sm font-semibold hover:underline mt-auto">
+                                    Read Analysis &rarr;
+                                </a>
+                            `;
+                            container.appendChild(card);
+                        });
+                    } else {
+                        showError(container);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching news:', error);
+                    showError(document.getElementById('news-container'));
+                });
+        });
+
+        // Helper to remove HTML tags from the description snippet
+        function stripHtml(html) {
+            let tmp = document.createElement("DIV");
+            tmp.innerHTML = html;
+            return tmp.textContent || tmp.innerText || "";
+        }
+
+        // Fallback if the feed fails
+        function showError(container) {
+            container.innerHTML = `
+                <div class="bg-white p-6 rounded-lg shadow-sm border-l-4 border-blue-600">
+                    <h3 class="font-bold text-lg mb-2">Fed Rate Updates</h3>
+                    <p class="text-slate-600">The latest data on Federal Reserve policies and their impact on mortgage rates.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-sm border-l-4 border-blue-600">
+                    <h3 class="font-bold text-lg mb-2">Market Analysis</h3>
+                    <p class="text-slate-600">Daily breakdown of bond market movements and housing inventory trends.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-sm border-l-4 border-blue-600">
+                    <h3 class="font-bold text-lg mb-2">Economic Outlook</h3>
+                    <p class="text-slate-600">Expert forecasts on inflation, employment data, and housing affordability.</p>
+                </div>
+            `;
+        }
+    </script>
 
     <div id="contact" class="max-w-3xl mx-auto px-4 py-20">
         <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
