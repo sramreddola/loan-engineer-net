@@ -277,6 +277,66 @@
             </div>
         </div>
     </div>
+<footer class="bg-slate-950 text-slate-500 py-12 border-t border-slate-900 text-sm">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center">
+            <div class="mb-4 md:mb-0">
+                <span class="font-bold text-slate-300 text-lg">The Loan Engineer</span>
+                <p class="mt-1">Surender Ramreddola | NMLS # 2728746</p>
+                <p>Boyds, Maryland</p>
+            </div>
+            <div class="text-center md:text-right">
+                <p class="mb-2">
+                    <i class="fa-solid fa-house-chimney text-slate-600 mr-2"></i> Equal Housing Lender
+                </p>
+                <p class="max-w-md text-xs text-slate-600">
+                    *Rates, APY, and terms are subject to change without notice. This is not a commitment to lend. 
+                    All loans are subject to credit approval.
+                </p>
+            </div>
+        </div>
+    </footer>
 
-    <footer class="bg-slate-950 text-slate-500 py-12 border-t border-slate-900 text-sm">
-        <div class="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items
+    <script>
+        // Update Date
+        document.getElementById('rate-date').innerText = new Date().toLocaleDateString();
+
+        // RSS News Feed
+        document.addEventListener('DOMContentLoaded', function() {
+            const feedUrl = 'https://www.mortgagenewsdaily.com/rss/news';
+            const convertUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`;
+
+            fetch(convertUrl)
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById('news-container');
+                    if (data.status === 'ok') {
+                        container.innerHTML = '';
+                        data.items.slice(0, 3).forEach(item => {
+                            const date = new Date(item.pubDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                            const card = document.createElement('div');
+                            card.className = 'bg-white p-6 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition flex flex-col';
+                            card.innerHTML = `
+                                <div class="text-xs font-bold text-blue-600 mb-2 uppercase">${date}</div>
+                                <h3 class="font-bold text-lg mb-3 leading-tight text-slate-900">
+                                    <a href="${item.link}" target="_blank" class="hover:text-blue-600 transition">${item.title}</a>
+                                </h3>
+                                <p class="text-slate-500 text-sm line-clamp-3 mb-4 flex-grow">${stripHtml(item.description)}</p>
+                                <a href="${item.link}" target="_blank" class="text-blue-600 text-sm font-semibold hover:underline mt-auto">Read More &rarr;</a>
+                            `;
+                            container.appendChild(card);
+                        });
+                    }
+                })
+                .catch(e => console.log(e));
+        });
+
+        function stripHtml(html) {
+            let tmp = document.createElement("DIV");
+            tmp.innerHTML = html;
+            return tmp.textContent || tmp.innerText || "";
+        }
+    </script>
+
+</body>
+</html>
+    
