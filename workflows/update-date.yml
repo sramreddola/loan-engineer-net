@@ -1,0 +1,26 @@
+name: Update Rate Date
+on:
+  push:
+    paths:
+      - 'rates.json' # Only runs when you change your rates
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Update Date in HTML
+        run: |
+          # Finds the rate-date span and updates it to today's date (MM/DD/YYYY)
+          CURRENT_DATE=$(date +'%m/%d/%Y')
+          sed -i "s|<span id=\"rate-date\">.*</span>|<span id=\"rate-date\">$CURRENT_DATE</span>|g" index.html
+
+      - name: Commit changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add index.html
+          git commit -m "Automated date update: $(date +'%Y-%m-%d')" || exit 0
+          git push
