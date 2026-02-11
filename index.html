@@ -92,7 +92,7 @@
     tab: 'purchase', 
     rates: { purchase: [], refi: [] },
     async init() {
-        this.rates = await (await fetch('./rates.json')).json();
+        this.rates = await (await fetch('rates.json')).json();
     }
 }" x-cloak>
     <div class="bg-white rounded-2xl shadow-xl border border-slate-200 h-full flex flex-col overflow-hidden relative">
