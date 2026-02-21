@@ -41,6 +41,7 @@
          background-size: 40px 40px;
          background-image: radial-gradient(circle, #334155 1px, transparent 1px);
          }
+         [x-cloak] { display: none !important; }
       </style>
    </head>
    <body class="bg-slate-50 text-slate-800 antialiased selection:bg-blue-200">
@@ -87,19 +88,10 @@
          </div>
       </div>
       <div id="rates" class="bg-slate-50 py-16 -mt-10 relative z-20">
-         <div class="max-w-7xl mx-auto px-4">
+         <div class="max-w-7xl mx-auto px-4" x-data="ratesApp()">
             <div class="grid lg:grid-cols-12 gap-8">
-               <div class="lg:col-span-4" x-data="{ 
-    tab: 'purchase', 
-    rates: { purchase: [], refi: [] },
-    async init() {
-        const data = await (await fetch('rates.json')).json();
-        this.rates = { purchase: data.purchase, refi: data.refi };
-        const dateEl = document.getElementById('rate-date');
-        if (dateEl) dateEl.textContent = data.lastUpdated || '';
-    }
-}" x-cloak>
-    <div class="bg-white rounded-2xl shadow-xl border border-slate-200 h-full flex flex-col overflow-hidden relative">
+               <div class="lg:col-span-4">
+    <div class="bg-white rounded-2xl shadow-xl border border-slate-200 h-full flex flex-col overflow-hidden relative" x-cloak>
         
         <div class="absolute top-4 right-4 z-10">
             <span class="flex h-3 w-3">
@@ -121,9 +113,10 @@
         <div class="p-6 flex-grow flex flex-col">
             <div class="mb-5 flex items-center justify-between">
                 <h2 class="text-lg font-bold text-slate-900" x-text="tab === 'purchase' ? 'Standard Purchase' : 'Refinance Options'"></h2>
-                <span class="text-[10px] font-mono text-slate-400 bg-slate-100 px-2 py-1 rounded">
-                    UPDATED: <span id="rate-date"></span>
-                </span>
+                <div class="text-right">
+                    <span class="text-[10px] font-mono text-slate-400 bg-slate-100 px-2 py-1 rounded block" x-text="'UPDATED: ' + formattedTime()"></span>
+                    <span x-show="updateFrequency" class="text-[9px] text-slate-400 mt-0.5 block" x-text="updateFrequency"></span>
+                </div>
             </div>
 
             <div class="space-y-3">
@@ -145,6 +138,18 @@
                                 <div class="text-2xl font-extrabold text-slate-900 leading-none" x-text="item.rate"></div>
                                 <div class="text-[10px] text-slate-400 font-bold mt-1" x-text="item.apr"></div>
                             </div>
+                        </div>
+                        <div class="flex items-center justify-between mt-2 pt-2 border-t border-slate-200/70">
+                            <span :class="trendBadgeClass(item.trend)" class="text-[10px] font-bold px-1.5 py-0.5 rounded inline-flex items-center gap-0.5">
+                                <span x-text="trendIcon(item.trend)"></span>
+                                <span x-text="Math.abs(item.rateChange).toFixed(3) + '% vs yesterday'"></span>
+                            </span>
+                            <span class="text-[10px] font-medium"
+                                  :class="item.marketAvg >= item.rateValue ? 'text-blue-600' : 'text-orange-500'"
+                                  x-text="Math.abs(item.marketAvg - item.rateValue).toFixed(2) + (item.marketAvg >= item.rateValue ? '% below avg' : '% above avg')"></span>
+                        </div>
+                        <div class="mt-1 text-[10px] text-slate-400">
+                            Est. <span class="font-semibold text-slate-700" x-text="fmt(calcPayment(item.rateValue, item.term))"></span>/mo on $400k
                         </div>
                     </div>
                 </template>
@@ -168,6 +173,130 @@
                      </div>
                   </div>
                </div>
+            </div>
+
+            <!-- Payment Calculator + Rate Context -->
+            <div class="mt-8 grid lg:grid-cols-12 gap-8" x-cloak>
+
+               <!-- Payment Calculator -->
+               <div class="lg:col-span-5">
+                  <div class="bg-white rounded-2xl shadow-xl border border-slate-200 p-6">
+                     <div class="flex items-center gap-3 mb-5">
+                        <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 flex-shrink-0">
+                           <i class="fa-solid fa-calculator"></i>
+                        </div>
+                        <div>
+                           <h3 class="font-bold text-slate-900">Payment Calculator</h3>
+                           <p class="text-xs text-slate-400">See how rate changes affect your payment</p>
+                        </div>
+                     </div>
+                     <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div>
+                           <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Loan Amount</label>
+                           <div class="relative">
+                              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">$</span>
+                              <input type="number" x-model.number="calcLoan" min="50000" max="2000000" step="10000"
+                                     class="w-full pl-6 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm font-medium">
+                           </div>
+                        </div>
+                        <div>
+                           <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Rate / Term</label>
+                           <select @change="updateCalc($event.target.value)"
+                                   class="w-full py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm">
+                              <template x-for="item in [...rates.purchase, ...rates.refi]" :key="item.label">
+                                 <option :value="item.label" :selected="item.label === calcLabel" x-text="item.label"></option>
+                              </template>
+                           </select>
+                        </div>
+                     </div>
+                     <div class="bg-slate-50 rounded-xl overflow-hidden">
+                        <table class="w-full text-sm">
+                           <thead class="bg-slate-100">
+                              <tr class="text-xs text-slate-500 font-bold uppercase">
+                                 <th class="text-left py-2 px-3">Scenario</th>
+                                 <th class="text-center py-2 px-3">Rate</th>
+                                 <th class="text-right py-2 px-3">Est. Monthly</th>
+                              </tr>
+                           </thead>
+                           <tbody class="divide-y divide-slate-100">
+                              <template x-if="calcRate !== null">
+                                 <tr class="hover:bg-slate-100/50 transition">
+                                    <td class="py-2 px-3 text-slate-500 text-xs">If 0.5% lower</td>
+                                    <td class="py-2 px-3 text-center font-mono text-xs text-slate-600" x-text="(calcRate - 0.5).toFixed(3) + '%'"></td>
+                                    <td class="py-2 px-3 text-right font-bold text-green-600" x-text="fmt(calcPayment(calcRate - 0.5, calcTerm))"></td>
+                                 </tr>
+                              </template>
+                              <template x-if="calcRate !== null">
+                                 <tr class="bg-blue-50">
+                                    <td class="py-2.5 px-3 font-bold text-blue-700 text-xs">Current Rate</td>
+                                    <td class="py-2.5 px-3 text-center font-mono font-bold text-blue-700 text-xs" x-text="calcRate !== null ? calcRate.toFixed(3) + '%' : ''"></td>
+                                    <td class="py-2.5 px-3 text-right font-bold text-blue-700" x-text="calcRate !== null ? fmt(calcPayment(calcRate, calcTerm)) : ''"></td>
+                                 </tr>
+                              </template>
+                              <template x-if="calcRate !== null">
+                                 <tr class="hover:bg-slate-100/50 transition">
+                                    <td class="py-2 px-3 text-slate-500 text-xs">If 0.5% higher</td>
+                                    <td class="py-2 px-3 text-center font-mono text-xs text-slate-600" x-text="(calcRate + 0.5).toFixed(3) + '%'"></td>
+                                    <td class="py-2 px-3 text-right font-bold text-red-500" x-text="fmt(calcPayment(calcRate + 0.5, calcTerm))"></td>
+                                 </tr>
+                              </template>
+                           </tbody>
+                        </table>
+                     </div>
+                     <p class="text-[10px] text-slate-400 mt-2">* Principal &amp; interest only. Does not include taxes, insurance, or PMI.</p>
+                  </div>
+               </div>
+
+               <!-- Rate Context -->
+               <div class="lg:col-span-7">
+                  <div class="bg-white rounded-2xl shadow-xl border border-slate-200 p-6 h-full">
+                     <h3 class="font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-circle-info text-blue-500"></i>
+                        Understanding Your Rate
+                     </h3>
+                     <div class="grid sm:grid-cols-2 gap-4">
+                        <div class="bg-blue-50 rounded-xl p-4">
+                           <p class="font-bold text-slate-800 text-sm mb-1.5 flex items-center gap-2">
+                              <i class="fa-solid fa-building-columns text-blue-500"></i> What Moves Rates
+                           </p>
+                           <p class="text-xs text-slate-500 leading-relaxed">
+                              Fed policy, inflation data (CPI/PCE), the 10-year Treasury yield, and mortgage-backed securities demand all drive daily rate changes.
+                           </p>
+                        </div>
+                        <div class="bg-green-50 rounded-xl p-4">
+                           <p class="font-bold text-slate-800 text-sm mb-1.5 flex items-center gap-2">
+                              <i class="fa-solid fa-arrow-trend-down text-green-500"></i> Get a Better Rate
+                           </p>
+                           <p class="text-xs text-slate-500 leading-relaxed">
+                              Boost your credit score (740+), increase your down payment (20%+), reduce your debt-to-income ratio, and consider paying points.
+                           </p>
+                        </div>
+                        <div class="bg-purple-50 rounded-xl p-4">
+                           <p class="font-bold text-slate-800 text-sm mb-1.5 flex items-center gap-2">
+                              <i class="fa-solid fa-lock text-purple-500"></i> Rate Lock Strategy
+                           </p>
+                           <p class="text-xs text-slate-500 leading-relaxed">
+                              Lock in at application if rates are trending up. Most locks are 30–60 days. 15-day locks can be cheaper if your closing date is near.
+                           </p>
+                        </div>
+                        <div class="bg-orange-50 rounded-xl p-4">
+                           <p class="font-bold text-slate-800 text-sm mb-1.5 flex items-center gap-2">
+                              <i class="fa-solid fa-chart-line text-orange-500"></i> 30-Day Trend
+                           </p>
+                           <template x-if="rates.purchase.length > 0">
+                              <p class="text-xs text-slate-500 leading-relaxed">
+                                 The 30-yr fixed is currently
+                                 <span class="font-semibold"
+                                       :class="rates.purchase[0].rateValue <= rates.purchase[0].avg30day ? 'text-green-600' : 'text-red-500'"
+                                       x-text="Math.abs(rates.purchase[0].avg30day - rates.purchase[0].rateValue).toFixed(3) + '% ' + (rates.purchase[0].rateValue <= rates.purchase[0].avg30day ? 'below' : 'above')"></span>
+                                 its 30-day average.
+                              </p>
+                           </template>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+
             </div>
          </div>
       </div>
@@ -290,8 +419,78 @@
             </div>
          </div>
       </footer>
-      <script>
-                 
+       <script>
+          function ratesApp() {
+            return {
+              tab: 'purchase',
+              rates: { purchase: [], refi: [] },
+              lastUpdated: '',
+              lastUpdatedTime: '',
+              updateFrequency: '',
+              calcLoan: 400000,
+              calcRate: null,
+              calcTerm: 30,
+              calcLabel: '',
+
+              async init() {
+                const data = await (await fetch('rates.json')).json();
+                this.rates = { purchase: data.purchase, refi: data.refi };
+                this.lastUpdated = data.lastUpdated || '';
+                this.lastUpdatedTime = data.lastUpdatedTime || '';
+                this.updateFrequency = data.updateFrequency || '';
+                if (this.rates.purchase.length) {
+                  const first = this.rates.purchase[0];
+                  this.calcRate = first.rateValue;
+                  this.calcTerm = first.term || 30;
+                  this.calcLabel = first.label;
+                }
+              },
+
+              calcPayment(rate, term) {
+                const p = parseFloat(this.calcLoan) || 400000;
+                const r = rate / 100 / 12;
+                const n = (term || 30) * 12;
+                if (r === 0) return p / n;
+                return p * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+              },
+
+              fmt(amount) {
+                return '$' + Math.round(amount).toLocaleString();
+              },
+
+              trendIcon(trend) {
+                return trend === 'down' ? '↓' : trend === 'up' ? '↑' : '→';
+              },
+
+              trendBadgeClass(trend) {
+                if (trend === 'down') return 'text-green-700 bg-green-100';
+                if (trend === 'up') return 'text-red-700 bg-red-100';
+                return 'text-slate-600 bg-slate-100';
+              },
+
+              formattedTime() {
+                if (!this.lastUpdatedTime) return this.lastUpdated;
+                try {
+                  return new Date(this.lastUpdatedTime).toLocaleString('en-US', {
+                    month: 'short', day: 'numeric', year: 'numeric',
+                    hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+                    timeZone: 'America/New_York'
+                  });
+                } catch(e) { return this.lastUpdated; }
+              },
+
+              updateCalc(label) {
+                const all = [...this.rates.purchase, ...this.rates.refi];
+                const found = all.find(r => r.label === label);
+                if (found) {
+                  this.calcRate = found.rateValue;
+                  this.calcTerm = found.term || 30;
+                  this.calcLabel = found.label;
+                }
+              }
+            };
+          }
+
          // RSS News Feed
          document.addEventListener('DOMContentLoaded', function() {
              const feedUrl = 'https://www.mortgagenewsdaily.com/rss/news';
