@@ -1,0 +1,88 @@
+name: Update Mortgage Rates
+
+on:
+  workflow_dispatch:
+    inputs:
+      rate_30yr:
+        description: '30-Year Fixed Rate (e.g., 6.625)'
+        required: true
+      apr_30yr:
+        description: '30-Year Fixed APR (e.g., 6.69)'
+        required: true
+      prev_rate_30yr:
+        description: 'Previous 30-Year Rate (for comparison)'
+        required: false
+      rate_15yr:
+        description: '15-Year Fixed Rate (e.g., 5.990)'
+        required: true
+      apr_15yr:
+        description: '15-Year Fixed APR (e.g., 6.12)'
+        required: true
+      prev_rate_15yr:
+        description: 'Previous 15-Year Rate (for comparison)'
+        required: false
+      rate_fha:
+        description: '30-Yr FHA Rate (e.g., 5.875)'
+        required: true
+      apr_fha:
+        description: '30-Yr FHA APR (e.g., 6.65)'
+        required: true
+      prev_rate_fha:
+        description: 'Previous FHA Rate (for comparison)'
+        required: false
+      rate_cashout:
+        description: 'Cash-Out Refi Rate (e.g., 6.875)'
+        required: true
+      apr_cashout:
+        description: 'Cash-Out Refi APR (e.g., 6.95)'
+        required: true
+      prev_rate_cashout:
+        description: 'Previous Cash-Out Rate (for comparison)'
+        required: false
+      rate_nopoint:
+        description: 'No-Point Refi Rate (e.g., 6.990)'
+        required: true
+      apr_nopoint:
+        description: 'No-Point Refi APR (e.g., 6.990)'
+        required: true
+      prev_rate_nopoint:
+        description: 'Previous No-Point Rate (for comparison)'
+        required: false
+
+jobs:
+  update-rates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Update rates.json
+        run: node scripts/manual-update.js
+        env:
+          RATE_30YR: ${{ github.event.inputs.rate_30yr }}
+          APR_30YR: ${{ github.event.inputs.apr_30yr }}
+          PREV_RATE_30YR: ${{ github.event.inputs.prev_rate_30yr }}
+          RATE_15YR: ${{ github.event.inputs.rate_15yr }}
+          APR_15YR: ${{ github.event.inputs.apr_15yr }}
+          PREV_RATE_15YR: ${{ github.event.inputs.prev_rate_15yr }}
+          RATE_FHA: ${{ github.event.inputs.rate_fha }}
+          APR_FHA: ${{ github.event.inputs.apr_fha }}
+          PREV_RATE_FHA: ${{ github.event.inputs.prev_rate_fha }}
+          RATE_CASHOUT: ${{ github.event.inputs.rate_cashout }}
+          APR_CASHOUT: ${{ github.event.inputs.apr_cashout }}
+          PREV_RATE_CASHOUT: ${{ github.event.inputs.prev_rate_cashout }}
+          RATE_NOPOINT: ${{ github.event.inputs.rate_nopoint }}
+          APR_NOPOINT: ${{ github.event.inputs.apr_nopoint }}
+          PREV_RATE_NOPOINT: ${{ github.event.inputs.prev_rate_nopoint }}
+      
+      - name: Commit and push updated rates
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add rates.json
+          git commit -m "Update mortgage rates - $(date -u +'%Y-%m-%d %H:%M:%S UTC')" || echo "No changes to commit"
+          git push
